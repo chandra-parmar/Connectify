@@ -26,18 +26,7 @@ app.use(express.json())
 app.use(cookieParser())
 
 
-//route mounting
-const authRouter = require('./routes/auth')
-const profileRouter = require('./routes/profile')
-const requestRouter = require('./routes/request')
-const userRouter = require('./routes/user')
 
-
-
-app.use('/api/',authRouter)
-app.use('/api/',profileRouter)
-app.use('/api/',requestRouter)
-app.use('/api/',userRouter)
 
 
 const server = http.createServer(app)
@@ -71,16 +60,65 @@ io.on("connection",(socket) => {
     socket.on("sendMessage",
         ({ firstName, userId , targetUserId , text})=>{
         
-        // sending message from server to user2 
-        const roomId = [userId, targetUserId ].sort().join("_")
-        console.log(firstName+ " "+text)
-        io.to(roomId).emit("messageReceived", { firstName, text })
+      
+
+          //save messages to the database
+          try{
+
+                const roomId = [userId , targetUserId ].sort().join("_")
+                 console.log(firstName + " "+text)
+             // 2 case if chat already exit then append it and if new then create then new one 
+
+             //already existing chat 
+             let  chat = Chat.findOne({
+                participants : { $all :[userId, targetUserId ]}
+
+             } )
+
+             //if no chat avaiable new chat 
+             if(!chat)
+             {
+                chat = new Chat({
+                    participants :[ userId , targetUserId],
+                    messages:[]
+                    
+                })
+
+                chat.messages.push({
+                    senderId : userId,
+                    text
+                })
+             }
+
+             io.to(roomId).emit("messageReceived", { firstName, text})
+
+          }catch(err)
+          {
+            console.log(err.message)
+          }
+
+          
      })
 
     socket.on("disconnect",()=>{
 
     })
 })
+
+//route mounting
+const authRouter = require('./routes/auth')
+const profileRouter = require('./routes/profile')
+const requestRouter = require('./routes/request')
+const userRouter = require('./routes/user')
+const chatRouter = require('./routes/chat')
+
+
+
+app.use('/api/',authRouter)
+app.use('/api/',profileRouter)
+app.use('/api/',requestRouter)
+app.use('/api/',userRouter)
+app.use('/api/',chatRouter)
 
 
 
